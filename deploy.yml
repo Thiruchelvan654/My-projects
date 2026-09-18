@@ -1,0 +1,89 @@
+---
+- name: Automate Complete Fullstack Kubernetes Deployment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    project_dir: "/mnt/c/Users/chelv/OneDrive/Documents/my-project"
+    cluster_name: "calico-lab"
+    app_namespace: "fullstack-dev"
+
+  tasks:
+    - name: Check if Kind cluster exists
+      ansible.builtin.shell: "kind get clusters"
+      register: kind_clusters
+      changed_when: false
+      failed_when: false
+
+    - name: Create Kind cluster with Calico config and port mapping
+      ansible.builtin.shell: >
+        kind create cluster --config {{ project_dir }}/kind-config.yaml
+      when: cluster_name not in kind_clusters.stdout_lines
+
+    - name: Load local container images into the Kind cluster
+      ansible.builtin.shell: >
+        kind load docker-image dockerthiru6/my-project-repo:latest --name {{ cluster_name }} &&
+        kind load docker-image dockerthiru6/my-project-repo:recent --name {{ cluster_name }}
+      changed_when: false
+
+    - name: Install Calico CNI
+      ansible.builtin.shell: >
+        kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+      changed_when: false
+
+    - name: Wait for Kubernetes nodes to reach Ready state
+      ansible.builtin.shell: >
+        kubectl wait --for=condition=ready node --all --timeout=180s
+      changed_when: false
+
+    - name: Ensure fullstack-dev namespace exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ app_namespace }}"
+        state: present
+
+    - name: Install Metrics Server for autoscaling
+      kubernetes.core.k8s:
+        src: "https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
+        state: present
+
+    - name: Patch Metrics Server for insecure TLS in local dev
+      ansible.builtin.shell: >
+        kubectl patch deployment metrics-server -n kube-system --type='json'
+        -p="$(cat {{ project_dir }}/k8s/metrics-server-patch.json)"
+      changed_when: false
+      failed_when: false
+
+    - name: Deploy Backend Tier (PVC, Deployment, Service)
+      kubernetes.core.k8s:
+        namespace: "{{ app_namespace }}"
+        src: "{{ project_dir }}/k8s/backend.yaml"
+        state: present
+
+    - name: Apply NetworkPolicy (Isolate backend to frontend only)
+      kubernetes.core.k8s:
+        namespace: "{{ app_namespace }}"
+        src: "{{ project_dir }}/k8s/networkpolicy.yaml"
+        state: present
+
+    - name: Deploy Frontend Tier (Deployment, NodePort Service)
+      kubernetes.core.k8s:
+        namespace: "{{ app_namespace }}"
+        src: "{{ project_dir }}/k8s/frontend.yaml"
+        state: present
+
+    - name: Apply Horizontal Pod Autoscaler
+      kubernetes.core.k8s:
+        namespace: "{{ app_namespace }}"
+        src: "{{ project_dir }}/k8s/hpa.yaml"
+        state: present
+
+    - name: Wait for backend and frontend pods to be Ready
+      ansible.builtin.shell: >
+        kubectl wait --for=condition=ready pod
+        -l app=backend -n {{ app_namespace }} --timeout=120s &&
+        kubectl wait --for=condition=ready pod
+        -l app=frontend -n {{ app_namespace }} --timeout=120s
+      changed_when: false

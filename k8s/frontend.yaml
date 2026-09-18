@@ -1,0 +1,42 @@
+# 1. Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+spec:
+  replicas: 1 # Frontend is stateless, so we can scale this to handle more traffic!
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: dockerthiru6/my-project-repo:recent # Your frontend image
+        ports:
+        - containerPort: 80 # Assuming you use Nginx to serve the static files
+        resources:
+          requests:
+            cpu: "100m" 
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+---
+# 2. Frontend Service (Public Access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: NodePort 
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 32432

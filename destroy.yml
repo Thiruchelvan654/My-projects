@@ -1,0 +1,17 @@
+---
+- name: Teardown and Terminate Kind Deployment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    cluster_name: "calico-lab"
+
+  tasks:
+    - name: Stop any running kubectl port-forwards
+      ansible.builtin.shell: "pkill -f 'kubectl port-forward' || true"
+      changed_when: false
+
+    - name: Delete the Kind cluster
+      ansible.builtin.shell: "kind delete cluster --name {{ cluster_name }}"
+      changed_when: true

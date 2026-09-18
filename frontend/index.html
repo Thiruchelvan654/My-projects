@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App</title>
+</head>
+<body>
+    <h2>Add New User</h2>
+    <form id="user-form">
+        <input type="text" id="name" placeholder="Name" required />
+        <input type="email" id="email" placeholder="Email" required />
+        <button type="submit">Add User</button>
+    </form>
+
+    <h2>Users List</h2>
+    <ul id="users-list"></ul>
+
+    <script>
+        const API_URL = '/users';
+
+        function fetchUsers() {
+            fetch(API_URL)
+                .then(response => response.json())
+                .then(users => {
+                    const list = document.getElementById('users-list');
+                    list.innerHTML = '';
+                    users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.style.marginBottom = '8px';
+                        li.textContent = user.name + ' - ' + user.email + ' ';
+
+                        // Create Delete button
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.textContent = 'Delete';
+                        deleteBtn.onclick = function() {
+                            deleteUser(user.id);
+                        };
+
+                        li.appendChild(deleteBtn);
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => console.error("Error fetching data:", err));
+        }
+
+        function deleteUser(userId) {
+            fetch(`${API_URL}/${userId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(() => {
+                fetchUsers(); // Refresh the list after deleting
+            })
+            .catch(err => console.error("Error deleting user:", err));
+        }
+
+        fetchUsers();
+
+        document.getElementById('user-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: name, email: email })
+            })
+            .then(response => response.json())
+            .then(() => {
+                document.getElementById('name').value = '';
+                document.getElementById('email').value = '';
+                fetchUsers();
+            })
+            .catch(err => console.error("Error adding user:", err));
+        });
+    </script>
+</body>
+</html>

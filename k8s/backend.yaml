@@ -1,0 +1,55 @@
+# 1. Persistent Storage for SQLite
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sqlite-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# 2. Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1 # Keep this at 1! SQLite cannot handle multiple pods writing to it simultaneously.
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: dockerthiru6/my-project-repo:latest # Your backend image
+        ports:
+        - containerPort: 5000 # Assuming Flask/FastAPI runs on 5000
+        volumeMounts:
+        - name: sqlite-storage
+          mountPath: /app/data # Make sure this matches the path in your backend Dockerfile
+      volumes:
+      - name: sqlite-storage
+        persistentVolumeClaim:
+          claimName: sqlite-pvc
+
+---
+# 3. Backend Service (Internal communication)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+

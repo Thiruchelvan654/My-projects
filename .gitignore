@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Local database
+data/database.db
+*.db
+
+# Environment / secrets
+.env
+
+# Node (if you ever add any frontend tooling)
+node_modules/
+
+# Local binaries — don't commit these
+kind.exe
+kubectl
+
+# OS/editor noise
+.DS_Store
+.vscode/
