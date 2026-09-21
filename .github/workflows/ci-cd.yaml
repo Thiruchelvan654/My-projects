@@ -42,3 +42,28 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ env.FRONTEND_IMAGE }}:latest
+  
+  # Runs on YOUR machine (self-hosted runner in WSL), since that's where Kind lives.
+  # Only fires on pushes to main - never on pull requests.
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Load new images into Kind
+        run: |
+          kind load docker-image ${{ env.BACKEND_IMAGE }}:latest --name ${{ env.KIND_CLUSTER }}
+          kind load docker-image ${{ env.FRONTEND_IMAGE }}:latest --name ${{ env.KIND_CLUSTER }}
+
+      - name: Update running Deployments to the new image tag
+        run: |
+          kubectl rollout restart deployment/backend-deployment -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment/frontend-deployment -n ${{ env.NAMESPACE }}
+
+      - name: Wait for rollout to finish
+        run: |
+          kubectl rollout status deployment/backend-deployment -n ${{ env.NAMESPACE }} --timeout=120s
+          kubectl rollout status deployment/frontend-deployment -n ${{ env.NAMESPACE }} --timeout=120s
