@@ -28,12 +28,13 @@ spec:
     spec:
       containers:
       - name: backend
-        image: dockerthiru6/my-project-repo:latest # Your backend image
+        image: dockerthiru6/my-project-backend:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 5000 # Assuming Flask/FastAPI runs on 5000
+        - containerPort: 5000
         volumeMounts:
         - name: sqlite-storage
-          mountPath: /app/data # Make sure this matches the path in your backend Dockerfile
+          mountPath: /app/data
       volumes:
       - name: sqlite-storage
         persistentVolumeClaim:
@@ -45,6 +46,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend-service
+  labels:
+    app: backend
 spec:
   selector:
     app: backend
@@ -52,4 +55,4 @@ spec:
     - protocol: TCP
       port: 5000
       targetPort: 5000
-
+      name: http

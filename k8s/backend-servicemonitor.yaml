@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-servicemonitor
+  namespace: fullstack-dev
+  labels:
+    release: monitoring   # must match the Helm release name so Prometheus picks it up
+spec:
+  selector:
+    matchLabels:
+      app: backend        # matches your backend-service's selector
+  endpoints:
+    - port: http           # we'll fix this to match your Service's actual port name below
+      path: /metrics
+      interval: 15s

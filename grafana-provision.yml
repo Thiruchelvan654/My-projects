@@ -1,0 +1,27 @@
+---
+- name: Provision Grafana from files (data source and dashboard)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    project_dir: "/mnt/c/Users/chelv/OneDrive/Pictures/my-projects"
+    kc: "kubectl --context kind-tf-lab"
+    monitoring_namespace: "monitoring"
+
+  tasks:
+    - name: Provision Grafana Loki data source
+      ansible.builtin.shell: >
+        {{ kc }} create configmap grafana-loki-datasource -n {{ monitoring_namespace }}
+        --from-file=loki-datasource.yaml={{ project_dir }}/k8s/grafana/loki-datasource.yaml
+        --dry-run=client -o yaml
+        | {{ kc }} label --local -f - grafana_datasource=1 -o yaml
+        | {{ kc }} apply -f -
+
+    - name: Provision Grafana dashboard
+      ansible.builtin.shell: >
+        {{ kc }} create configmap grafana-app-dashboard -n {{ monitoring_namespace }}
+        --from-file=app-dashboard.json={{ project_dir }}/k8s/grafana/app-dashboard.json
+        --dry-run=client -o yaml
+        | {{ kc }} label --local -f - grafana_dashboard=1 -o yaml
+        | {{ kc }} apply -f -

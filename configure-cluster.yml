@@ -1,0 +1,83 @@
+---
+- name: Configure the Terraform-provisioned Kind cluster (tf-lab)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    project_dir: "/mnt/c/Users/chelv/OneDrive/Pictures/my-projects"
+    kc: "kubectl --context kind-tf-lab"
+    app_namespace: "fullstack-dev"
+    monitoring_namespace: "monitoring"
+    promtail_patch: '[{"op":"add","path":"/spec/template/spec/containers/0/env","value":[{"name":"HOSTNAME","valueFrom":{"fieldRef":{"fieldPath":"spec.nodeName"}}}]}]'
+
+  tasks:
+    - name: Install Calico CNI
+      ansible.builtin.shell: "{{ kc }} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml"
+      register: calico
+      retries: 3
+      delay: 10
+      until: calico.rc == 0
+
+    - name: Wait for the node to become Ready
+      ansible.builtin.shell: "{{ kc }} wait --for=condition=ready node --all --timeout=300s"
+      changed_when: false
+
+    - name: Create namespaces
+      ansible.builtin.shell: "{{ kc }} create namespace {{ item }} --dry-run=client -o yaml | {{ kc }} apply -f -"
+      loop:
+        - "{{ app_namespace }}"
+        - "{{ monitoring_namespace }}"
+
+    - name: Install metrics-server
+      ansible.builtin.shell: "{{ kc }} apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
+      register: metrics
+      retries: 3
+      delay: 10
+      until: metrics.rc == 0
+
+    - name: Patch metrics-server for insecure TLS (local dev only)
+      ansible.builtin.shell: "{{ kc }} patch deployment metrics-server -n kube-system --type=json -p \"$(cat {{ project_dir }}/k8s/metrics-server-patch.json)\""
+      register: ms_patch
+      retries: 3
+      delay: 10
+      until: ms_patch.rc == 0
+
+    - name: Apply application manifests
+      ansible.builtin.shell: "{{ kc }} apply -n {{ app_namespace }} -f {{ project_dir }}/k8s/{{ item }}"
+      loop:
+        - backend.yaml
+        - networkpolicy.yaml
+        - frontend.yaml
+        - hpa.yaml
+
+    - name: Add the Prometheus Helm repo
+      ansible.builtin.shell: "helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update && helm repo update"
+
+    - name: Install kube-prometheus-stack
+      ansible.builtin.shell: "helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -n {{ monitoring_namespace }} --kube-context kind-tf-lab --wait --timeout 10m"
+      register: prom
+      retries: 3
+      delay: 15
+      until: prom.rc == 0
+
+    - name: Apply the backend ServiceMonitor
+      ansible.builtin.shell: "{{ kc }} apply -f {{ project_dir }}/k8s/backend-servicemonitor.yaml"
+
+    - name: Deploy Loki and Promtail
+      ansible.builtin.shell: "{{ kc }} apply -f {{ project_dir }}/loki-plain.yaml"
+
+    - name: Fix Promtail node discovery (HOSTNAME must be the node name)
+      ansible.builtin.shell: "{{ kc }} patch daemonset promtail -n {{ monitoring_namespace }} --type=json -p '{{ promtail_patch }}'"
+
+    - name: Wait for Promtail to roll out
+      ansible.builtin.shell: "{{ kc }} rollout status daemonset/promtail -n {{ monitoring_namespace }} --timeout=180s"
+      changed_when: false
+
+    - name: Wait for the app pods to be Ready
+      ansible.builtin.shell: >
+        {{ kc }} wait --for=condition=ready pod -l app=backend -n {{ app_namespace }} --timeout=300s &&
+        {{ kc }} wait --for=condition=ready pod -l app=frontend -n {{ app_namespace }} --timeout=300s
+      changed_when: false
+
+- import_playbook: grafana-provision.yml

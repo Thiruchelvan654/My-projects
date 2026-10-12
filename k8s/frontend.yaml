@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: dockerthiru6/my-project-repo:recent # Your frontend image
+        image: dockerthiru6/my-project-frontend:latest
+        imagePullPolicy: Always # Your frontend image
         ports:
         - containerPort: 80 # Assuming you use Nginx to serve the static files
         resources:

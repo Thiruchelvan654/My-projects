@@ -16,6 +16,9 @@ spec:
         - podSelector:
             matchLabels:
               app: frontend   # only pods labeled app=frontend may connect
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring   # allow Prometheus to scrape /metrics
       ports:
         - protocol: TCP
           port: 5000
