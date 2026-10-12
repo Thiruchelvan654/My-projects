@@ -9,12 +9,11 @@ on:
 env:
   BACKEND_IMAGE: dockerthiru6/my-project-backend
   FRONTEND_IMAGE: dockerthiru6/my-project-frontend
-  KIND_CLUSTER: calico-lab          # unchanged
-  KIND_CLUSTERS: "calico-lab tf-lab" # added
+  KIND_CLUSTER: calico-lab
+  KIND_CLUSTERS: "calico-lab tf-lab"
   NAMESPACE: fullstack-dev
 
 jobs:
-  # Runs on GitHub's cloud runners - no access to your local cluster needed here.
   build-and-push:
     runs-on: ubuntu-latest
     steps:
@@ -43,10 +42,8 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ env.FRONTEND_IMAGE }}:latest
-  
-  # Runs on YOUR machine (self-hosted runner in WSL), since that's where Kind lives.
-  # Only fires on pushes to main - never on pull requests.
-   deploy:
+
+  deploy:
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
     runs-on: self-hosted
