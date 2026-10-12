@@ -40,3 +40,8 @@ terraform/*-config
 *.tfstate
 *.tfstate.*
 terraform/*-config
+
+# Local tools and runner (credentials, large binaries)
+actions-runner/
+actions-runner-*.tar.gz
+stern.tar.gz
