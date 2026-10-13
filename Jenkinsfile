@@ -13,6 +13,8 @@ pipeline {
   environment {
     BACKEND_IMAGE  = 'dockerthiru6/my-project-backend'
     FRONTEND_IMAGE = 'dockerthiru6/my-project-frontend'
+    NAMESPACE      = 'fullstack-dev'
+    KIND_NODE      = 'tf-lab-control-plane'
   }
 
   stages {
@@ -51,6 +53,24 @@ pipeline {
             docker push $FRONTEND_IMAGE:latest
             docker logout
           '''
+        }
+      }
+    }
+
+    stage('Deploy to tf-lab') {
+      steps {
+        sh '''
+          docker exec $KIND_NODE cat /etc/kubernetes/admin.conf > kubeconfig-tf-lab
+          export KUBECONFIG=$PWD/kubeconfig-tf-lab
+          kubectl set image deployment/backend-deployment backend=$BACKEND_IMAGE:$TAG -n $NAMESPACE
+          kubectl set image deployment/frontend-deployment frontend=$FRONTEND_IMAGE:$TAG -n $NAMESPACE
+          kubectl rollout status deployment/backend-deployment -n $NAMESPACE --timeout=180s
+          kubectl rollout status deployment/frontend-deployment -n $NAMESPACE --timeout=180s
+        '''
+      }
+      post {
+        always {
+          sh 'rm -f kubeconfig-tf-lab'
         }
       }
     }
