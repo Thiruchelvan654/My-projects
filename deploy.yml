@@ -23,8 +23,8 @@
 
     - name: Load local container images into the Kind cluster
       ansible.builtin.shell: >
-        kind load docker-image dockerthiru6/my-project-repo:latest --name {{ cluster_name }} &&
-        kind load docker-image dockerthiru6/my-project-repo:recent --name {{ cluster_name }}
+        kind load docker-image dockerthiru6/my-project-backend:latest --name {{ cluster_name }} &&
+        kind load docker-image dockerthiru6/my-project-frontend:latest --name {{ cluster_name }}
       changed_when: false
 
     - name: Install Calico CNI
