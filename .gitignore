@@ -45,3 +45,4 @@ terraform/*-config
 actions-runner/
 actions-runner-*.tar.gz
 stern.tar.gz
+jenkins-backup.tgz
