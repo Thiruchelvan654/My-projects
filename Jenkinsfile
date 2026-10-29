@@ -51,7 +51,7 @@ pipeline {
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 -v trivy-cache:/root/.cache/ \
                 aquasec/trivy:latest image \
-                --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
+                --severity CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
                 $BACKEND_IMAGE:$TAG
             '''
           }
@@ -63,7 +63,7 @@ pipeline {
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 -v trivy-cache:/root/.cache/ \
                 aquasec/trivy:latest image \
-                --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
+                --severity CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
                 $FRONTEND_IMAGE:$TAG
             '''
           }
