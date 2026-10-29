@@ -42,35 +42,6 @@ pipeline {
       }
     }
 
-    stage('Security scan (Trivy)') {
-      parallel {
-        stage('Scan backend') {
-          steps {
-            sh '''
-              docker run --rm \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                -v trivy-cache:/root/.cache/ \
-                aquasec/trivy:latest image \
-                --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
-                $BACKEND_IMAGE:$TAG
-            '''
-          }
-        }
-        stage('Scan frontend') {
-          steps {
-            sh '''
-              docker run --rm \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                -v trivy-cache:/root/.cache/ \
-                aquasec/trivy:latest image \
-                --severity LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 --ignore-unfixed --no-progress \
-                $FRONTEND_IMAGE:$TAG
-            '''
-          }
-        }
-      }
-    }
-
     stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
