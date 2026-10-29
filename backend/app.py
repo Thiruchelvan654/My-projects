@@ -17,8 +17,6 @@ metrics.info('app_info', 'Application info', version='1.0.0')
 
 # ... your existing routes (/users, DB handlers, etc.) ...
 
-
-
 DB_PATH = '/app/data/database.db'
 
 # Consolidated database initialization logic
