@@ -21,10 +21,10 @@
         kind create cluster --config {{ project_dir }}/kind-config.yaml
       when: cluster_name not in kind_clusters.stdout_lines
 
-    - name: Load local container images into the Kind cluster
+    - name: Load container images into Kind via ctr stream
       ansible.builtin.shell: >
-        kind load docker-image dockerthiru6/my-project-backend:latest --name {{ cluster_name }} &&
-        kind load docker-image dockerthiru6/my-project-frontend:latest --name {{ cluster_name }}
+        docker save dockerthiru6/my-project-backend:latest dockerthiru6/my-project-frontend:latest |
+        docker exec -i {{ cluster_name }}-control-plane ctr -n k8s.io images import -
       changed_when: false
 
     - name: Install Calico CNI
@@ -37,7 +37,7 @@
         kubectl wait --for=condition=ready node --all --timeout=180s
       changed_when: false
 
-    - name: Ensure fullstack-dev namespace exists
+    - name: Ensure namespace exists
       kubernetes.core.k8s:
         api_version: v1
         kind: Namespace
@@ -56,19 +56,19 @@
       changed_when: false
       failed_when: false
 
-    - name: Deploy Backend Tier (PVC, Deployment, Service)
+    - name: Deploy Backend Tier
       kubernetes.core.k8s:
         namespace: "{{ app_namespace }}"
         src: "{{ project_dir }}/k8s/backend.yaml"
         state: present
 
-    - name: Apply NetworkPolicy (Isolate backend to frontend only)
+    - name: Apply NetworkPolicy
       kubernetes.core.k8s:
         namespace: "{{ app_namespace }}"
         src: "{{ project_dir }}/k8s/networkpolicy.yaml"
         state: present
 
-    - name: Deploy Frontend Tier (Deployment, NodePort Service)
+    - name: Deploy Frontend Tier
       kubernetes.core.k8s:
         namespace: "{{ app_namespace }}"
         src: "{{ project_dir }}/k8s/frontend.yaml"
@@ -80,10 +80,8 @@
         src: "{{ project_dir }}/k8s/hpa.yaml"
         state: present
 
-    - name: Wait for backend and frontend pods to be Ready
+    - name: Wait for backend and frontend deployments to be Ready
       ansible.builtin.shell: >
-        kubectl wait --for=condition=ready pod
-        -l app=backend -n {{ app_namespace }} --timeout=120s &&
-        kubectl wait --for=condition=ready pod
-        -l app=frontend -n {{ app_namespace }} --timeout=120s
+        kubectl rollout status deployment/backend-deployment -n {{ app_namespace }} --timeout=180s &&
+        kubectl rollout status deployment/frontend-deployment -n {{ app_namespace }} --timeout=180s
       changed_when: false

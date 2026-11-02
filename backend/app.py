@@ -4,8 +4,6 @@ from flask_cors import CORS
 import sqlite3
 from prometheus_flask_exporter import PrometheusMetrics
 
-
-
 app = Flask(__name__)
 CORS(app)
 
@@ -15,8 +13,7 @@ metrics = PrometheusMetrics(app)
 # Static metric info (optional, useful for dashboards)
 metrics.info('app_info', 'Application info', version='1.0.0')
 
-# ... your existing routes (/users, DB handlers, etc.) ...
-
+# ... your existing routes (/users, DB handlers, etc.) ..
 DB_PATH = '/app/data/database.db'
 
 # Consolidated database initialization logic
