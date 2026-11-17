@@ -43,6 +43,22 @@ pipeline {
       }
     }
 
+    stage('Scan images (Trivy)') {
+      steps {
+        sh '''
+          for IMG in $BACKEND_IMAGE:$TAG $FRONTEND_IMAGE:$TAG; do
+            echo "=== Trivy scan: $IMG ==="
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v trivy-cache:/root/.cache/ \
+              aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL --ignore-unfixed --no-progress \
+              --exit-code 0 $IMG
+          done
+        '''
+      }
+    }
+
     stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
